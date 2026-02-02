@@ -20,8 +20,8 @@ import {
 /* ───────── CONFIG ───────── */
 const CONFIG = {
   TICKET_CHANNEL_NAME: '📖tickets',
-  MAX_INACTIVE_MS: 2 * 24 * 60 * 60 * 1000, // 2 días
-  STAFF_ROLE_ID: '1458243569075884219', // Ajusta tu rol de staff
+  MAX_INACTIVE_MS: 2 * 24 * 60 * 60 * 1000, 
+  STAFF_ROLE_ID: '1343353558665396406', // ID ACTUALIZADO según tus mensajes
   EMOJIS: { TICKET: '🎫' },
   TYPES: ['Reporte', 'Bug', 'Tienda', 'Otros'],
   QUESTIONS: {
@@ -31,14 +31,6 @@ const CONFIG = {
     Otros: ['Describe tu solicitud', 'Información adicional opcional'],
   },
 };
-
-/* ───────── EXPRESS SERVER ───────── */
-const app = express();
-const PORT = process.env.PORT || 10000;
-app.get('/', (_, res) =>
-  res.send(`🤖 Bot Power Luki: ${client?.ws?.status === 0 ? 'ONLINE' : 'CONECTANDO...'}`)
-);
-app.listen(PORT, () => console.log(`🌐 Web server escuchando en ${PORT}`));
 
 /* ───────── CLIENT ───────── */
 const client = new Client({
@@ -51,14 +43,29 @@ const client = new Client({
   partials: [Partials.Message, Partials.Channel, Partials.GuildMember],
 });
 
+/* ───────── EXPRESS SERVER ───────── */
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+app.get('/', (_, res) => {
+  const status = client.isReady() ? 'ONLINE ✅' : 'CONECTANDO... ⏳';
+  res.send(`🤖 Bot Power Luki: ${status}`);
+});
+
+// El servidor web se inicia aquí
+app.listen(PORT, () => console.log(`🌐 Web server escuchando en puerto ${PORT}`));
+
 /* ───────── UTILIDADES ───────── */
 function saveTickets(tickets) {
-  if (!fs.existsSync('./data')) fs.mkdirSync('./data');
+  if (!fs.existsSync('./data')) fs.mkdirSync('./data', { recursive: true });
   fs.writeFileSync('./data/tickets.json', JSON.stringify(tickets, null, 2));
 }
 
 function loadTickets() {
-  if (!fs.existsSync('./data/tickets.json')) fs.writeFileSync('./data/tickets.json', '{}');
+  if (!fs.existsSync('./data/tickets.json')) {
+    if (!fs.existsSync('./data')) fs.mkdirSync('./data', { recursive: true });
+    fs.writeFileSync('./data/tickets.json', '{}');
+  }
   return JSON.parse(fs.readFileSync('./data/tickets.json', 'utf8'));
 }
 
@@ -80,29 +87,32 @@ function createTicketEmbed(user, type, details = {}) {
 
 /* ───────── READY ───────── */
 client.once('ready', async () => {
-  console.log(`🤖 Bot conectado como ${client.user.tag}`);
+  console.log(`✅ ¡ÉXITO! Bot conectado como ${client.user.tag}`);
 
-  // Enviar mensaje de ticket si no existe
   client.guilds.cache.forEach(async guild => {
-    const ch = findChannelByName(guild, CONFIG.TICKET_CHANNEL_NAME);
-    if (!ch) return;
+    try {
+      const ch = findChannelByName(guild, CONFIG.TICKET_CHANNEL_NAME);
+      if (!ch) return;
 
-    const fetched = await ch.messages.fetch({ limit: 10 });
-    if (fetched.some(m => m.author.id === client.user.id && m.embeds.length && m.embeds[0].title === '🎫 Tickets')) return;
+      const fetched = await ch.messages.fetch({ limit: 10 });
+      if (fetched.some(m => m.author.id === client.user.id && m.embeds.length && m.embeds[0].title === '🎫 Tickets')) return;
 
-    const embed = new EmbedBuilder()
-      .setTitle('🎫 Tickets')
-      .setDescription('Pulsa un botón para crear un ticket.\nTipos disponibles: Reporte, Bug, Tienda, Otros')
-      .setColor('Blue');
+      const embed = new EmbedBuilder()
+        .setTitle('🎫 Tickets')
+        .setDescription('Pulsa un botón para crear un ticket.\nTipos disponibles: Reporte, Bug, Tienda, Otros')
+        .setColor('Blue');
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('ticket_report').setLabel('Reporte').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('ticket_bug').setLabel('Bug').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId('ticket_tienda').setLabel('Tienda').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('ticket_otro').setLabel('Otros').setStyle(ButtonStyle.Secondary),
-    );
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('ticket_report').setLabel('Reporte').setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId('ticket_bug').setLabel('Bug').setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId('ticket_tienda').setLabel('Tienda').setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId('ticket_otro').setLabel('Otros').setStyle(ButtonStyle.Secondary),
+      );
 
-    await ch.send({ embeds: [embed], components: [row] }).catch(console.error);
+      await ch.send({ embeds: [embed], components: [row] });
+    } catch (e) {
+      console.error("Error en canal de tickets:", e.message);
+    }
   });
 });
 
@@ -110,7 +120,6 @@ client.once('ready', async () => {
 client.on('interactionCreate', async interaction => {
   const tickets = loadTickets();
 
-  // ===== CREACIÓN DE TICKET =====
   if (interaction.isButton() && interaction.customId.startsWith('ticket_')) {
     const typeMap = {
       ticket_report: 'Reporte',
@@ -120,12 +129,10 @@ client.on('interactionCreate', async interaction => {
     };
     const type = typeMap[interaction.customId];
 
-    const guild = interaction.guild;
     const channelName = `ticket-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-    const existing = guild.channels.cache.find(c => c.name === channelName);
+    const existing = interaction.guild.channels.cache.find(c => c.name === channelName);
     if (existing) return interaction.reply({ content: 'Ya tienes un ticket abierto.', ephemeral: true });
 
-    // Modal con preguntas específicas
     const modal = new ModalBuilder().setCustomId(`ticket_modal_${type}`).setTitle(`${type} Ticket`);
 
     CONFIG.QUESTIONS[type].forEach((q, i) => {
@@ -139,7 +146,6 @@ client.on('interactionCreate', async interaction => {
     return interaction.showModal(modal);
   }
 
-  // ===== RECEPCIÓN DE MODAL =====
   if (interaction.isModalSubmit() && interaction.customId.startsWith('ticket_modal_')) {
     const type = interaction.customId.replace('ticket_modal_', '');
     const details = {};
@@ -149,102 +155,51 @@ client.on('interactionCreate', async interaction => {
 
     const guild = interaction.guild;
     const channelName = `ticket-${interaction.user.username.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
-    const channel = await guild.channels.create({
-      name: channelName,
-      type: ChannelType.GuildText,
-      permissionOverwrites: [
-        { id: guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-        { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-        { id: CONFIG.STAFF_ROLE_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
-      ],
-    });
+    
+    try {
+        const channel = await guild.channels.create({
+          name: channelName,
+          type: ChannelType.GuildText,
+          permissionOverwrites: [
+            { id: guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+            { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+            { id: CONFIG.STAFF_ROLE_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
+          ],
+        });
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`close_${channel.id}`).setLabel('Cerrar').setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(`claim_${channel.id}`).setLabel('Reclamar').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId(`reopen_${channel.id}`).setLabel('Reabrir').setStyle(ButtonStyle.Secondary)
-    );
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(`close_${channel.id}`).setLabel('Cerrar').setStyle(ButtonStyle.Danger),
+          new ButtonBuilder().setCustomId(`claim_${channel.id}`).setLabel('Reclamar').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId(`reopen_${channel.id}`).setLabel('Reabrir').setStyle(ButtonStyle.Secondary)
+        );
 
-    const embed = createTicketEmbed(interaction.user, type, details);
-    await channel.send({ content: `<@${interaction.user.id}> <@&${CONFIG.STAFF_ROLE_ID}>`, embeds: [embed], components: [row] });
+        const embed = createTicketEmbed(interaction.user, type, details);
+        await channel.send({ content: `<@${interaction.user.id}> <@&${CONFIG.STAFF_ROLE_ID}>`, embeds: [embed], components: [row] });
 
-    tickets[channel.id] = { userId: interaction.user.id, type, details, createdAt: Date.now(), lastActivity: Date.now(), claimedBy: null };
-    saveTickets(tickets);
+        tickets[channel.id] = { userId: interaction.user.id, type, details, createdAt: Date.now(), lastActivity: Date.now(), claimedBy: null };
+        saveTickets(tickets);
 
-    return interaction.reply({ content: `Ticket creado: ${channel}`, ephemeral: true });
-  }
-
-  // ===== CERRAR TICKET =====
-  if (interaction.isButton() && interaction.customId.startsWith('close_')) {
-    await interaction.reply({ content: 'Cerrando ticket en 5s...', ephemeral: true });
-    setTimeout(async () => {
-      const ch = interaction.channel;
-      const tickets = loadTickets();
-      delete tickets[ch.id];
-      saveTickets(tickets);
-      await ch.delete().catch(() => {});
-    }, 5000);
-  }
-
-  // ===== RECLAMAR TICKET =====
-  if (interaction.isButton() && interaction.customId.startsWith('claim_')) {
-    const ticketId = interaction.customId.replace('claim_', '');
-    if (tickets[ticketId]?.claimedBy) return interaction.reply({ content: 'Este ticket ya está reclamado.', ephemeral: true });
-
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`confirm_claim_${ticketId}`).setLabel('✅ Sí').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`cancel_claim_${ticketId}`).setLabel('❌ No').setStyle(ButtonStyle.Danger)
-    );
-    return interaction.reply({ content: '¿Deseas reclamar este ticket?', components: [row], ephemeral: true });
-  }
-
-  if (interaction.isButton() && interaction.customId.startsWith('confirm_claim_')) {
-    const ticketId = interaction.customId.replace('confirm_claim_', '');
-    tickets[ticketId].claimedBy = interaction.user.id;
-    saveTickets(tickets);
-    return interaction.update({ content: `Ticket reclamado por ${interaction.user.tag}`, components: [], ephemeral: true });
-  }
-
-  if (interaction.isButton() && interaction.customId.startsWith('cancel_claim_')) {
-    return interaction.update({ content: 'Reclamo cancelado ❌', components: [], ephemeral: true });
-  }
-
-  // ===== REABRIR TICKET =====
-  if (interaction.isButton() && interaction.customId.startsWith('reopen_')) {
-    const ch = interaction.channel;
-    if (tickets[ch.id]) return interaction.reply({ content: 'Este ticket ya está abierto.', ephemeral: true });
-    tickets[ch.id] = { userId: interaction.user.id, type: 'Reabierto', details: {}, createdAt: Date.now(), lastActivity: Date.now(), claimedBy: null };
-    saveTickets(tickets);
-    return interaction.reply({ content: 'Ticket reabierto ✅', ephemeral: true });
-  }
-});
-
-/* ───────── INACTIVIDAD AUTOMÁTICA ───────── */
-setInterval(() => {
-  const tickets = loadTickets();
-  const now = Date.now();
-  Object.entries(tickets).forEach(async ([channelId, data]) => {
-    if (now - data.lastActivity > CONFIG.MAX_INACTIVE_MS) {
-      const ch = await client.channels.fetch(channelId).catch(() => null);
-      if (ch) await ch.delete().catch(() => {});
-      delete tickets[channelId];
+        return interaction.reply({ content: `Ticket creado: ${channel}`, ephemeral: true });
+    } catch (e) {
+        return interaction.reply({ content: 'Error al crear el canal. Revisa los permisos del bot.', ephemeral: true });
     }
-  });
-  saveTickets(tickets);
-}, 60_000);
+  }
 
-/* ───────── LOGIN FINAL ───────── */
-console.log("intentando conectar a Discord...");
-
-client.login(process.env.TOKEN)
-  .then(() => {
-    console.log("✅ BOT ONLINE: Conectado como " + client.user.tag);
-  })
-  .catch((err) => {
-    console.error("❌ ERROR CRÍTICO:");
-    console.error(err.message);
-  });
-
-client.once('ready', () => {
-    console.log(`🤖 Confirmado desde el evento ready: ${client.user.tag}`);
+  // CERRAR, RECLAMAR, etc. (Simplificado para depuración)
+  if (interaction.isButton() && interaction.customId.startsWith('close_')) {
+    await interaction.reply({ content: 'Cerrando ticket...', ephemeral: true });
+    setTimeout(() => interaction.channel.delete().catch(() => {}), 2000);
+  }
 });
+
+/* ───────── LOGIN DEFINITIVO ───────── */
+console.log("📡 Intentando conectar a Discord...");
+
+if (!process.env.TOKEN) {
+    console.error("❌ ERROR: No hay TOKEN en las variables de Render.");
+} else {
+    client.login(process.env.TOKEN).catch(err => {
+        console.error("❌ FALLO EL LOGIN:");
+        console.error(err.message);
+    });
+}
