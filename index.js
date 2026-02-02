@@ -233,5 +233,15 @@ setInterval(() => {
   saveTickets(tickets);
 }, 60_000);
 
-/* ───────── LOGIN ───────── */
-client.login(process.env.TOKEN).then(() => console.log('✅ Bot logueado')).catch(console.error);
+/* ───────── LOGIN CON DEPURACIÓN ───────── */
+if (!process.env.TOKEN) {
+    console.error("❌ ERROR: La variable TOKEN no está definida en Render.");
+} else {
+    console.log("📡 Intentando conectar con Discord...");
+    client.login(process.env.TOKEN)
+        .then(() => console.log('✅ Bot logueado exitosamente'))
+        .catch(err => {
+            console.error('❌ ERROR AL CONECTAR CON DISCORD:');
+            console.error(err); // Esto te dirá si el token es inválido o faltan Intents
+        });
+}
