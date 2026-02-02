@@ -198,8 +198,16 @@ console.log("📡 Intentando conectar a Discord...");
 if (!process.env.TOKEN) {
     console.error("❌ ERROR: No hay TOKEN en las variables de Render.");
 } else {
-    client.login(process.env.TOKEN).catch(err => {
-        console.error("❌ FALLO EL LOGIN:");
-        console.error(err.message);
-    });
+    client.login(process.env.TOKEN)
+        .then(() => {
+            console.log(`✅ ¡ÉXITO! Bot conectado como: ${client.user.tag}`);
+        })
+        .catch((err) => {
+            console.error("❌ FALLÓ EL LOGIN:");
+            console.error(err.message);
+        });
 }
+
+client.once('ready', () => {
+    console.log(`🤖 Bot listo y escuchando eventos.`);
+});
