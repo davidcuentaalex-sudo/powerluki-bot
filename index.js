@@ -14,6 +14,7 @@ import {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  Events, // ✅ añadido para evitar el warning
 } from 'discord.js';
 
 /* ───────── CONFIG ───────── */
@@ -318,3 +319,4 @@ if (!CONFIG.TOKEN) {
 }
 
 client.login(CONFIG.TOKEN).catch(console.error);
+
