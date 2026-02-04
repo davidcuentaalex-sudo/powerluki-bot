@@ -166,9 +166,24 @@ client.once('ready', async () => {
     if (msgs.some(m => m.author.id === client.user.id)) continue;
 
     const embed = new EmbedBuilder()
-      .setTitle('🎫 Sistema de Tickets')
-      .setDescription('Selecciona un tipo de ticket')
-      .setColor('Blue');
+  .setColor('#5865F2') // Color Discord profesional
+  .setTitle('🎟️ SISTEMA DE TICKETS — POWER LUKI')
+  .setDescription(
+    '**Bienvenido al soporte oficial de Power Luki Network**\n\n' +
+    '📌 Selecciona el tipo de ticket que mejor se adapte a tu problema:\n\n' +
+    '🟦 **Reporte** — Problemas con jugadores o normas\n' +
+    '🟥 **Bug** — Errores del servidor o fallos técnicos\n' +
+    '🟩 **Tienda** — Compras, rangos o pagos\n' +
+    '🟪 **Otros** — Cualquier otra consulta\n\n' +
+    '⏱️ *Nuestro equipo responderá lo antes posible*'
+  )
+  .setImage('https://i.postimg.cc/659F1Hch/IMG-20260204-WA0003.jpg')
+ .setFooter({
+  text: 'Power Luki Network • Soporte Oficial',
+  iconURL: guild.iconURL(),
+})
+
+  .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(
       ...Object.keys(CONFIG.TYPES).map(type =>
@@ -319,4 +334,5 @@ if (!CONFIG.TOKEN) {
 }
 
 client.login(CONFIG.TOKEN).catch(console.error);
+
 
