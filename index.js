@@ -1,4 +1,4 @@
-// Power Luki Network — Ticket System REVAMPED
+// Power Luki Network — Ticket System REVAMPED (CORREGIDO)
 import 'dotenv/config';
 import fs from 'fs';
 import express from 'express';
@@ -14,7 +14,7 @@ import {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  Events, // ✅ añadido para evitar el warning
+  Events, // ✅ usado para evitar el warning
 } from 'discord.js';
 
 /* ───────── CONFIG ───────── */
@@ -153,8 +153,8 @@ async function log(guild, message) {
   if (ch) ch.send(message).catch(() => {});
 }
 
-/* ───────── READY ───────── */
-client.once('ready', async () => {
+/* ───────── CLIENT READY (actualizado) ───────── */
+client.once(Events.ClientReady, async () => {
   console.log(`🤖 Conectado como ${client.user.tag}`);
 
   // PANEL
@@ -166,24 +166,23 @@ client.once('ready', async () => {
     if (msgs.some(m => m.author.id === client.user.id)) continue;
 
     const embed = new EmbedBuilder()
-  .setColor('#5865F2') // Color Discord profesional
-  .setTitle('🎟️ SISTEMA DE TICKETS — POWER LUKI')
-  .setDescription(
-    '**Bienvenido al soporte oficial de Power Luki Network**\n\n' +
-    '📌 Selecciona el tipo de ticket que mejor se adapte a tu problema:\n\n' +
-    '🟦 **Reporte** — Problemas con jugadores o normas\n' +
-    '🟥 **Bug** — Errores del servidor o fallos técnicos\n' +
-    '🟩 **Tienda** — Compras, rangos o pagos\n' +
-    '🟪 **Otros** — Cualquier otra consulta\n\n' +
-    '⏱️ *Nuestro equipo responderá lo antes posible*'
-  )
-  .setImage('https://i.postimg.cc/659F1Hch/IMG-20260204-WA0003.jpg')
- .setFooter({
-  text: 'Power Luki Network • Soporte Oficial',
-  iconURL: guild.iconURL(),
-})
-
-  .setTimestamp();
+      .setColor('#5865F2') // Color Discord profesional
+      .setTitle('🎟️ SISTEMA DE TICKETS — POWER LUKI')
+      .setDescription(
+        '**Bienvenido al soporte oficial de Power Luki Network**\n\n' +
+        '📌 Selecciona el tipo de ticket que mejor se adapte a tu problema:\n\n' +
+        '🟦 **Reporte** — Problemas con jugadores o normas\n' +
+        '🟥 **Bug** — Errores del servidor o fallos técnicos\n' +
+        '🟩 **Tienda** — Compras, rangos o pagos\n' +
+        '🟪 **Otros** — Cualquier otra consulta\n\n' +
+        '⏱️ *Nuestro equipo responderá lo antes posible*'
+      )
+      .setImage('https://i.postimg.cc/659F1Hch/IMG-20260204-WA0003.jpg')
+      .setFooter({
+        text: 'Power Luki Network • Soporte Oficial',
+        iconURL: guild.iconURL(),
+      })
+      .setTimestamp();
 
     const row = new ActionRowBuilder().addComponents(
       ...Object.keys(CONFIG.TYPES).map(type =>
@@ -259,7 +258,7 @@ client.on('interactionCreate', async interaction => {
 
     const name = `ticket-${interaction.user.id}`;
     if (interaction.guild.channels.cache.some(c => c.name === name))
-      return interaction.reply({ content: '❌ Ya tienes un ticket.', ephemeral: true });
+      return interaction.reply({ content: '❌ Ya tienes un ticket.', flags: 64 });
 
     const overwrites = [
       { id: interaction.guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] },
@@ -295,7 +294,7 @@ client.on('interactionCreate', async interaction => {
     });
 
     await log(interaction.guild, `📩 Ticket creado (${type}) por <@${interaction.user.id}>`);
-    return interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
+    return interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: 64 });
   }
 
   // STAFF BUTTONS
@@ -305,7 +304,7 @@ client.on('interactionCreate', async interaction => {
     if (!ticket) return;
 
     if (!hasPermission(interaction.member, action))
-      return interaction.reply({ content: '❌ Sin permisos.', ephemeral: true });
+      return interaction.reply({ content: '❌ Sin permisos.', flags: 64 });
 
     ticket.lastActivity = Date.now();
 
@@ -334,5 +333,3 @@ if (!CONFIG.TOKEN) {
 }
 
 client.login(CONFIG.TOKEN).catch(console.error);
-
-
