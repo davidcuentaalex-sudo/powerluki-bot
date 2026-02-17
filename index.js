@@ -1,4 +1,4 @@
-// Power Luki Network — Ticket System REVAMPED (CORREGIDO)
+// Power Luki Network — Ticket System REVAMPED (CLEAN VERSION)
 import 'dotenv/config';
 import fs from 'fs';
 import express from 'express';
@@ -14,7 +14,7 @@ import {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  Events, // ✅ usado para evitar el warning
+  Events,
 } from 'discord.js';
 
 /* ───────── CONFIG ───────── */
@@ -23,9 +23,11 @@ const CONFIG = {
   PORT: process.env.PORT || 10000,
 
   PANEL_CHANNEL_ID: '1340758848201424926',
-  LOG_CHANNEL_ID: 'PON_ID_LOGS_O_NULL', // null si no quieres logs
+  LOG_CHANNEL_ID: 'PON_ID_LOGS_O_NULL', // Pon la ID real o déjalo así si no usas logs
 
+  // ✅ ROLES ACTUALIZADOS
   ROLES: {
+    owner: '1340887228431335457', // Nuevo rol Owner añadido
     staff: '1343093044290916395',
     admin: '1343060062851301406',
     helper: '1343060191880675399',
@@ -34,10 +36,11 @@ const CONFIG = {
     coowner: '1343040895313907805',
   },
 
+  // ✅ PERMISOS ACTUALIZADOS (Owner añadido a todo)
   PERMISSIONS: {
-    claim: ['staff', 'admin', 'helper', 'programador', 'events', 'coowner'],
-    close: ['admin', 'coowner', 'staff'],
-    reopen: ['admin', 'coowner', 'staff'],
+    claim: ['owner', 'staff', 'admin', 'helper', 'programador', 'events', 'coowner'],
+    close: ['owner', 'admin', 'coowner', 'staff'],
+    reopen: ['owner', 'admin', 'coowner', 'staff'],
   },
 
   AUTO_CLOSE_MS: 24 * 60 * 60 * 1000, // 24h
@@ -50,7 +53,7 @@ const CONFIG = {
     Bug: {
       color: 'Red',
       questions: ['Describe el bug', 'Plataforma afectada'],
-      autoCloseMs: 12 * 60 * 60 * 1000, // opcional por tipo
+      autoCloseMs: 12 * 60 * 60 * 1000,
     },
     Tienda: {
       color: 'Green',
@@ -95,7 +98,11 @@ function ensureData() {
 
 function loadTickets() {
   ensureData();
-  return JSON.parse(fs.readFileSync(CONFIG.DATA_FILE, 'utf8'));
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG.DATA_FILE, 'utf8'));
+  } catch (e) {
+    return {};
+  }
 }
 
 function saveTickets(data) {
@@ -108,9 +115,10 @@ const ROLE_IDS = Object.values(CONFIG.ROLES);
 
 function hasPermission(member, action) {
   const allowed = CONFIG.PERMISSIONS[action] || [];
-  return allowed.some(key =>
-    member.roles.cache.has(CONFIG.ROLES[key])
-  );
+  return allowed.some(key => {
+    const roleId = CONFIG.ROLES[key];
+    return roleId && member.roles.cache.has(roleId);
+  });
 }
 
 function ticketEmbed(user, type, details, claimedBy) {
@@ -134,7 +142,7 @@ function ticketButtons(channelId, claimed) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`claim_${channelId}`)
-      .setLabel(claimed ? 'Unclaim' : 'Claim')
+      .setLabel(claimed ? 'Dejar Ticket' : 'Reclamar')
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(`close_${channelId}`)
@@ -148,12 +156,12 @@ function ticketButtons(channelId, claimed) {
 }
 
 async function log(guild, message) {
-  if (!CONFIG.LOG_CHANNEL_ID) return;
+  if (!CONFIG.LOG_CHANNEL_ID || CONFIG.LOG_CHANNEL_ID === 'PON_ID_LOGS_O_NULL') return;
   const ch = guild.channels.cache.get(CONFIG.LOG_CHANNEL_ID);
   if (ch) ch.send(message).catch(() => {});
 }
 
-/* ───────── CLIENT READY (actualizado) ───────── */
+/* ───────── CLIENT READY ───────── */
 client.once(Events.ClientReady, async () => {
   console.log(`🤖 Conectado como ${client.user.tag}`);
 
@@ -162,11 +170,15 @@ client.once(Events.ClientReady, async () => {
     const panel = guild.channels.cache.get(CONFIG.PANEL_CHANNEL_ID);
     if (!panel) continue;
 
-    const msgs = await panel.messages.fetch({ limit: 5 });
-    if (msgs.some(m => m.author.id === client.user.id)) continue;
+    // Evitar duplicar el mensaje del panel
+    const msgs = await panel.messages.fetch({ limit: 10 });
+    if (msgs.some(m => m.author.id === client.user.id && m.embeds.length > 0)) {
+       console.log(`✅ Panel ya existente en: ${guild.name}`);
+       continue;
+    }
 
     const embed = new EmbedBuilder()
-      .setColor('#5865F2') // Color Discord profesional
+      .setColor('#5865F2')
       .setTitle('🎟️ SISTEMA DE TICKETS — POWER LUKI')
       .setDescription(
         '**Bienvenido al soporte oficial de Power Luki Network**\n\n' +
@@ -206,18 +218,19 @@ client.once(Events.ClientReady, async () => {
   setInterval(() => {
     const tickets = loadTickets();
     const now = Date.now();
+    let changed = false;
 
     for (const [cid, t] of Object.entries(tickets)) {
-      const limit =
-        CONFIG.TYPES[t.type]?.autoCloseMs ?? CONFIG.AUTO_CLOSE_MS;
+      const limit = CONFIG.TYPES[t.type]?.autoCloseMs ?? CONFIG.AUTO_CLOSE_MS;
 
       if (now - t.lastActivity > limit) {
         const ch = client.channels.cache.get(cid);
         if (ch) ch.delete().catch(() => {});
         delete tickets[cid];
+        changed = true;
       }
     }
-    saveTickets(tickets);
+    if (changed) saveTickets(tickets);
   }, 10 * 60 * 1000);
 });
 
@@ -225,19 +238,22 @@ client.once(Events.ClientReady, async () => {
 client.on('interactionCreate', async interaction => {
   const tickets = loadTickets();
 
-  // OPEN
+  // OPEN BUTTON
   if (interaction.isButton() && interaction.customId.startsWith('open_')) {
     const type = interaction.customId.replace('open_', '');
+    
+    // Crear Modal
     const modal = new ModalBuilder()
       .setCustomId(`modal_${type}`)
       .setTitle(`Ticket — ${type}`);
 
+    // Añadir preguntas al modal
     CONFIG.TYPES[type].questions.forEach((q, i) =>
       modal.addComponents(
         new ActionRowBuilder().addComponents(
           new TextInputBuilder()
             .setCustomId(`q${i}`)
-            .setLabel(q)
+            .setLabel(q.substring(0, 45)) // Limite discord label
             .setStyle(TextInputStyle.Paragraph)
             .setRequired(true)
         )
@@ -247,7 +263,7 @@ client.on('interactionCreate', async interaction => {
     return interaction.showModal(modal);
   }
 
-  // SUBMIT
+  // MODAL SUBMIT (Crear el canal)
   if (interaction.isModalSubmit()) {
     const type = interaction.customId.replace('modal_', '');
     const details = {};
@@ -256,9 +272,12 @@ client.on('interactionCreate', async interaction => {
       details[q] = interaction.fields.getTextInputValue(`q${i}`);
     });
 
-    const name = `ticket-${interaction.user.id}`;
-    if (interaction.guild.channels.cache.some(c => c.name === name))
-      return interaction.reply({ content: '❌ Ya tienes un ticket.', flags: 64 });
+    const name = `ticket-${interaction.user.username}`.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20);
+    
+    // Evitar spam de tickets
+    const existing = Object.values(tickets).find(t => t.userId === interaction.user.id && t.guildId === interaction.guild.id);
+    // Si quieres permitir solo 1 ticket a la vez, descomenta la siguiente línea:
+    // if (existing) return interaction.reply({ content: '❌ Ya tienes un ticket abierto.', ephemeral: true });
 
     const overwrites = [
       { id: interaction.guild.roles.everyone.id, deny: [PermissionsBitField.Flags.ViewChannel] },
@@ -269,56 +288,82 @@ client.on('interactionCreate', async interaction => {
       })),
     ];
 
-    const channel = await interaction.guild.channels.create({
-      name,
-      type: ChannelType.GuildText,
-      permissionOverwrites: overwrites,
-    });
+    try {
+        const channel = await interaction.guild.channels.create({
+          name: `ticket-${interaction.user.username}`, // Nombre del canal
+          type: ChannelType.GuildText,
+          permissionOverwrites: overwrites,
+          parent: interaction.channel.parentId // Opcional: Crear en la misma categoría del panel
+        });
 
-    tickets[channel.id] = {
-      guildId: interaction.guild.id,
-      userId: interaction.user.id,
-      type,
-      details,
-      claimedBy: null,
-      createdAt: Date.now(),
-      lastActivity: Date.now(),
-    };
+        tickets[channel.id] = {
+          guildId: interaction.guild.id,
+          userId: interaction.user.id,
+          type,
+          details,
+          claimedBy: null,
+          createdAt: Date.now(),
+          lastActivity: Date.now(),
+        };
 
-    saveTickets(tickets);
+        saveTickets(tickets);
 
-    await channel.send({
-      content: `<@${interaction.user.id}> ${ROLE_IDS.map(r => `<@&${r}>`).join(' ')}`,
-      embeds: [ticketEmbed(interaction.user, type, details, null)],
-      components: [ticketButtons(channel.id, false)],
-    });
+        await channel.send({
+          content: `<@${interaction.user.id}> ${ROLE_IDS.map(r => `<@&${r}>`).join(' ')}`,
+          embeds: [ticketEmbed(interaction.user, type, details, null)],
+          components: [ticketButtons(channel.id, false)],
+        });
 
-    await log(interaction.guild, `📩 Ticket creado (${type}) por <@${interaction.user.id}>`);
-    return interaction.reply({ content: `✅ Ticket creado: ${channel}`, flags: 64 });
+        await log(interaction.guild, `📩 Ticket creado (${type}) por <@${interaction.user.id}> en ${channel}`);
+        return interaction.reply({ content: `✅ Ticket creado: ${channel}`, ephemeral: true });
+    } catch (error) {
+        console.error(error);
+        return interaction.reply({ content: '❌ Error al crear el ticket. Revisa permisos o roles.', ephemeral: true });
+    }
   }
 
-  // STAFF BUTTONS
+  // TICKET BUTTONS (Staff)
   if (interaction.isButton()) {
+    // Verificar si es un botón de gestión de tickets
+    if (!['claim', 'close', 'reopen'].some(action => interaction.customId.startsWith(action + '_'))) return;
+
     const [action, cid] = interaction.customId.split('_');
     const ticket = tickets[cid];
-    if (!ticket) return;
+    
+    // Si el ticket no está en la base de datos (o se borró manualmente)
+    if (!ticket) return interaction.reply({ content: '❌ Este ticket ya no está en la base de datos.', ephemeral: true });
 
     if (!hasPermission(interaction.member, action))
-      return interaction.reply({ content: '❌ Sin permisos.', flags: 64 });
+      return interaction.reply({ content: '❌ No tienes permisos para esta acción.', ephemeral: true });
 
     ticket.lastActivity = Date.now();
 
-    if (action === 'claim') ticket.claimedBy = ticket.claimedBy ? null : interaction.user.id;
+    if (action === 'claim') {
+        // Toggle claim: si ya es mío lo quito, si no, lo tomo
+        if (ticket.claimedBy === interaction.user.id) {
+            ticket.claimedBy = null;
+        } else {
+            ticket.claimedBy = interaction.user.id;
+        }
+    }
 
     if (action === 'close') {
       delete tickets[cid];
       saveTickets(tickets);
       await log(interaction.guild, `🔒 Ticket cerrado por <@${interaction.user.id}>`);
-      return interaction.channel.delete().catch(() => {});
+      await interaction.reply({ content: '🔒 Cerrando ticket en 5 segundos...' });
+      setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
+      return;
+    }
+
+    if (action === 'reopen') {
+        // Lógica de reabrir (simplemente actualiza actividad)
+        await interaction.channel.send(`🔄 Ticket reabierto/actualizado por <@${interaction.user.id}>`);
     }
 
     saveTickets(tickets);
 
+    // Actualizar el embed principal con el nuevo estado (ej. Claimed)
     await interaction.update({
       embeds: [ticketEmbed(`<@${ticket.userId}>`, ticket.type, ticket.details, ticket.claimedBy)],
       components: [ticketButtons(cid, !!ticket.claimedBy)],
@@ -328,7 +373,7 @@ client.on('interactionCreate', async interaction => {
 
 /* ───────── LOGIN ───────── */
 if (!CONFIG.TOKEN) {
-  console.error('❌ TOKEN no definido');
+  console.error('❌ TOKEN no definido en archivo .env');
   process.exit(1);
 }
 
