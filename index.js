@@ -350,13 +350,19 @@ client.on(Events.InteractionCreate, async interaction => {
 
 /* ───────── 🔥 ENCENDIDO ───────── */
 if (!CONFIG.TOKEN) {
-    console.error('❌ ERROR: Falta el TOKEN en el archivo .env');
-    process.exit(1);
-  console.log("Intentando conectar a Discord...");
-console.log("¿Token detectado?:", process.env.TOKEN ? "SÍ" : "NO");
-client.login(process.env.TOKEN).catch(err => {
-    console.error("Fallo crítico en login:");
-    console.error(err);
-});
-}
+console.log("------------------------------------------");
+console.log("🔍 DIAGNÓSTICO DE INICIO:");
+console.log(`- Fecha: ${new Date().toISOString()}`);
+console.log(`- Token presente: ${process.env.TOKEN ? "SÍ (Longitud: " + process.env.TOKEN.length + ")" : "NO"}`);
+console.log("------------------------------------------");
+
+client.login(process.env.TOKEN)
+    .then(() => {
+        console.log('🔥 [BOT] Login exitoso');
+    })
+    .catch(err => {
+        console.error('❌ [BOT] Error crítico en login:');
+        console.error(err); // Esto nos dirá si es "Invalid Token" o "Network Error"
+        process.exit(1);
+    });
 client.login(CONFIG.TOKEN);
