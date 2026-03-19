@@ -115,6 +115,16 @@ const client = new Client({
   ]
 });
 
+/* ───────── 🕵️ DEPURACIÓN PROFUNDA ───────── */
+client.on('debug', d => console.log(`[DEBUG] ${d}`));
+client.on('error', e => console.error(`[ERROR] ${e.message}`));
+client.on('warn', w => console.warn(`[WARN] ${w}`));
+
+// Esto te dirá si el bot intenta conectarse pero Discord lo rechaza
+client.on('shardDisconnect', (event, id) => {
+    console.error(`❌ El Shard ${id} se desconectó. Código: ${event.code}`);
+});
+
 // Verifica permisos basado en la configuración
 function checkPerms(member, actionType) {
   const allowedRoles = CONFIG.PERMISSIONS[actionType];
