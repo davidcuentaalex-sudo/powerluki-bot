@@ -355,6 +355,9 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 /* ───────── 🔥 ENCENDIDO ───────── */
+client.on('debug', info => console.log(`[DEBUG] ${info}`));
+client.on('warn', info => console.warn(`[WARN] ${info}`));
+client.on('error', error => console.error(`[ERROR] ${error}`));
 
 // 1. Verificación de seguridad del Token
 if (!CONFIG.TOKEN) {
@@ -371,6 +374,14 @@ console.log("🔍 DIAGNÓSTICO DE INICIO:");
 console.log(`- Fecha: ${new Date().toISOString()}`);
 console.log(`- Token presente: SÍ (Longitud: ${CONFIG.TOKEN.length})`);
 console.log("------------------------------------------");
+
+client.once(Events.ClientReady, async (c) => {
+    console.log('------------------------------------------');
+    console.log(`✅ [SESIÓN INICIADA]`);
+    console.log(`🤖 Usuario: ${c.user.tag}`);
+    console.log(`🌍 Servidores: ${c.guilds.cache.size}`);
+    console.log('------------------------------------------');
+});
 
 // 3. Intento de Login
 client.login(CONFIG.TOKEN)
