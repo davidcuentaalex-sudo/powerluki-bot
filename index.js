@@ -352,5 +352,11 @@ client.on(Events.InteractionCreate, async interaction => {
 if (!CONFIG.TOKEN) {
     console.error('❌ ERROR: Falta el TOKEN en el archivo .env');
     process.exit(1);
+  console.log("Intentando conectar a Discord...");
+console.log("¿Token detectado?:", process.env.TOKEN ? "SÍ" : "NO");
+client.login(process.env.TOKEN).catch(err => {
+    console.error("Fallo crítico en login:");
+    console.error(err);
+});
 }
 client.login(CONFIG.TOKEN);
