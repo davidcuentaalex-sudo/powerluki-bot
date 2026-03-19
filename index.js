@@ -106,7 +106,13 @@ function saveTickets(data) {
 
 /* ───────── 🛠️ UTILIDADES ───────── */
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+  intents: [
+    GatewayIntentBits.Guilds,           // Necesario para ver canales y servidores
+    GatewayIntentBits.GuildMembers,      // Necesario para manejar roles y permisos de tickets
+    GatewayIntentBits.GuildMessages,     // Necesario para leer mensajes en los tickets
+    GatewayIntentBits.MessageContent,    // Necesario para el contenido de los mensajes (Transcript)
+    GatewayIntentBits.GuildPresences     // ✨ AGREGADO: Necesario para que el bot actualice su estado/actividad sin errores
+  ]
 });
 
 // Verifica permisos basado en la configuración
