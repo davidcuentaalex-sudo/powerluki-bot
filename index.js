@@ -18,7 +18,8 @@ import {
   TextInputStyle,
   Events,
   MessageFlags,
-  AttachmentBuilder
+  AttachmentBuilder,
+  ActivityType // ✅ LÍNEA NUEVA AGREGADA
 } from 'discord.js';
 
 /* ───────── ⚙️ CONFIGURACIÓN MAESTRA ───────── */
@@ -126,6 +127,22 @@ async function generateTranscript(channel) {
 /* ───────── 🤖 EVENTOS DEL CLIENTE ───────── */
 client.once(Events.ClientReady, async () => {
   console.log(`🚀 Bot iniciado como: ${client.user.tag}`);
+
+  // --- INICIO DE ESTADOS ROTATIVOS ---
+  const estados = [
+    { nombre: '🎟️ Soporte de Tickets', tipo: ActivityType.Playing },
+    { nombre: '🌐 IP: powerlucky.hidenmc.com', tipo: ActivityType.Watching }, // "Viendo IP..."
+    { nombre: '🔗 powerlucky.tebex.io', tipo: ActivityType.Playing }
+  ];
+
+  let indice = 0;
+  
+  // Cambia el estado cada 15 segundos
+  setInterval(() => {
+    client.user.setActivity(estados[indice].nombre, { type: estados[indice].tipo });
+    indice = (indice + 1) % estados.length;
+  }, 15000);
+  // --- FIN DE ESTADOS ROTATIVOS ---
 
   // 1. SISTEMA DE PANEL AUTOMÁTICO
   const guild = client.guilds.cache.first(); // Asume que está en 1 server principal
