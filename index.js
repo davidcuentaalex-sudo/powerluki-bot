@@ -349,20 +349,34 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 /* ───────── 🔥 ENCENDIDO ───────── */
+
+// 1. Verificación de seguridad del Token
 if (!CONFIG.TOKEN) {
+    console.error("------------------------------------------");
+    console.error("❌ ERROR CRÍTICO: No se detectó la variable 'TOKEN'.");
+    console.error("Asegúrate de configurarla en las Environment Variables de Render.");
+    console.error("------------------------------------------");
+    process.exit(1);
+}
+
+// 2. Diagnóstico de inicio
 console.log("------------------------------------------");
 console.log("🔍 DIAGNÓSTICO DE INICIO:");
 console.log(`- Fecha: ${new Date().toISOString()}`);
-console.log(`- Token presente: ${process.env.TOKEN ? "SÍ (Longitud: " + process.env.TOKEN.length + ")" : "NO"}`);
+console.log(`- Token presente: SÍ (Longitud: ${CONFIG.TOKEN.length})`);
 console.log("------------------------------------------");
 
-client.login(process.env.TOKEN)
+// 3. Intento de Login
+client.login(CONFIG.TOKEN)
     .then(() => {
-        console.log('🔥 [BOT] Login exitoso');
+        console.log('🔥 [BOT] Login exitoso y conectado a Discord');
     })
     .catch(err => {
         console.error('❌ [BOT] Error crítico en login:');
-        console.error(err); // Esto nos dirá si es "Invalid Token" o "Network Error"
+        if (err.message.includes("An invalid token")) {
+            console.error("EL TOKEN PROPORCIONADO NO ES VÁLIDO.");
+        } else {
+            console.error(err);
+        }
         process.exit(1);
     });
-client.login(CONFIG.TOKEN);
