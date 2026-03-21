@@ -4,8 +4,8 @@
 import 'dotenv/config';
 import fs from 'fs';
 import express from 'express';
-import { setDefaultResultOrder } from 'node:dns';
-import { Agent, setGlobalDispatcher } from 'undici'; // Parche de red para Node 22
+import { setDefaultResultOrder, lookup } from 'node:dns'; // ✅ IMPORTADO LOOKUP
+import { Agent, setGlobalDispatcher } from 'undici';
 import {
   Client,
   GatewayIntentBits,
@@ -27,12 +27,12 @@ import {
 // 1. Forzar IPv4 a nivel DNS
 setDefaultResultOrder('ipv4first');
 
-// 2. Forzar Agente de Red a ignorar IPv6 (Solución definitiva para Node 22 en Render)
+// 2. Parche de red compatible con ESM (Sin 'require')
 const agent = new Agent({
   connect: {
     lookup: (hostname, options, callback) => {
-      options.family = 4; // Solo IPv4
-      return require('node:dns').lookup(hostname, options, callback);
+      options.family = 4; // Forzar IPv4
+      return lookup(hostname, options, callback); // ✅ USANDO EL IMPORT DE ARRIBA
     }
   }
 });
