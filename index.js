@@ -4,6 +4,7 @@
 import 'dotenv/config';
 import fs from 'fs';
 import express from 'express';
+import { setDefaultResultOrder } from 'node:dns'; // 🔥 Crítico para Node 22
 import {
   Client,
   GatewayIntentBits,
@@ -19,8 +20,11 @@ import {
   Events,
   MessageFlags,
   AttachmentBuilder,
-  ActivityType // ✅ LÍNEA NUEVA AGREGADA
+  ActivityType
 } from 'discord.js';
+
+// Forzamos la resolución de IPv4 antes que IPv6 para evitar el cuelgue en Render
+setDefaultResultOrder('ipv4first');
 
 /* ───────── ⚙️ CONFIGURACIÓN MAESTRA ───────── */
 const CONFIG = {
@@ -107,12 +111,21 @@ function saveTickets(data) {
 /* ───────── 🛠️ UTILIDADES ───────── */
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,           // Necesario para ver canales y servidores
-    GatewayIntentBits.GuildMembers,      // Necesario para manejar roles y permisos de tickets
-    GatewayIntentBits.GuildMessages,     // Necesario para leer mensajes en los tickets
-    GatewayIntentBits.MessageContent,    // Necesario para el contenido de los mensajes (Transcript)
-    GatewayIntentBits.GuildPresences     // ✨ AGREGADO: Necesario para que el bot actualice su estado/actividad sin errores
-  ]
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildPresences
+  ],
+  // Configuraciones de bajo nivel para estabilidad en Cloud
+  rest: { 
+    timeout: 60000, 
+    retries: 5 
+  },
+  ws: {
+    compress: false, // Desactivar compresión reduce carga en el handshake inicial
+    large_threshold: 50
+  }
 });
 
 /* ───────── 🕵️ DEPURACIÓN PROFUNDA ───────── */
@@ -393,22 +406,24 @@ client.once(Events.ClientReady, async (c) => {
     console.log('------------------------------------------');
 });
 
-// 3. Intento de Login con Timeout de Seguridad
-console.log("⏳ [SISTEMA] Iniciando petición de autenticación...");
+// 3. Intento de Login con Watchdog de Conexión
+console.log("------------------------------------------");
+console.log("⏳ [SISTEMA] Iniciando secuencia de login...");
 
-const authTimeout = setTimeout(() => {
-    console.error("⛔ [ERROR CRÍTICO] El login tardó más de 45s. Bloqueo de red detectado (IPv6/DNS).");
+const connectionWatchdog = setTimeout(() => {
+    console.error("⛔ [CRÍTICO] Timeout excedido (30s) sin respuesta de Discord Gateway.");
+    console.error("Revisar: Variables de entorno, IPv6 o Rate Limits.");
     process.exit(1);
-}, 45000);
+}, 30000);
 
 client.login(CONFIG.TOKEN)
     .then(() => {
-        clearTimeout(authTimeout);
-        console.log('🔥 [BOT] Autenticación completada en los servidores de Discord.');
+        clearTimeout(connectionWatchdog);
+        console.log('🔥 [BOT] Sesión establecida correctamente.');
     })
     .catch(err => {
-        clearTimeout(authTimeout);
-        console.error('❌ [BOT] Error en el handshake:');
-        console.error(err.message);
+        clearTimeout(connectionWatchdog);
+        console.error('❌ [BOT] Error fatal en la autenticación:');
+        console.error(err.stack || err);
         process.exit(1);
     });
