@@ -393,17 +393,22 @@ client.once(Events.ClientReady, async (c) => {
     console.log('------------------------------------------');
 });
 
-// 3. Intento de Login
+// 3. Intento de Login con Timeout de Seguridad
+console.log("⏳ [SISTEMA] Iniciando petición de autenticación...");
+
+const authTimeout = setTimeout(() => {
+    console.error("⛔ [ERROR CRÍTICO] El login tardó más de 45s. Bloqueo de red detectado (IPv6/DNS).");
+    process.exit(1);
+}, 45000);
+
 client.login(CONFIG.TOKEN)
     .then(() => {
-        console.log('🔥 [BOT] Login exitoso y conectado a Discord');
+        clearTimeout(authTimeout);
+        console.log('🔥 [BOT] Autenticación completada en los servidores de Discord.');
     })
     .catch(err => {
-        console.error('❌ [BOT] Error crítico en login:');
-        if (err.message.includes("An invalid token")) {
-            console.error("EL TOKEN PROPORCIONADO NO ES VÁLIDO.");
-        } else {
-            console.error(err);
-        }
+        clearTimeout(authTimeout);
+        console.error('❌ [BOT] Error en el handshake:');
+        console.error(err.message);
         process.exit(1);
     });
