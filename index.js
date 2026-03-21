@@ -4,7 +4,8 @@
 import 'dotenv/config';
 import fs from 'fs';
 import express from 'express';
-import { setDefaultResultOrder } from 'node:dns'; // 🔥 Crítico para Node 22
+import { setDefaultResultOrder } from 'node:dns';
+import { Agent, setGlobalDispatcher } from 'undici'; // Parche de red para Node 22
 import {
   Client,
   GatewayIntentBits,
@@ -23,8 +24,19 @@ import {
   ActivityType
 } from 'discord.js';
 
-// Forzamos la resolución de IPv4 antes que IPv6 para evitar el cuelgue en Render
+// 1. Forzar IPv4 a nivel DNS
 setDefaultResultOrder('ipv4first');
+
+// 2. Forzar Agente de Red a ignorar IPv6 (Solución definitiva para Node 22 en Render)
+const agent = new Agent({
+  connect: {
+    lookup: (hostname, options, callback) => {
+      options.family = 4; // Solo IPv4
+      return require('node:dns').lookup(hostname, options, callback);
+    }
+  }
+});
+setGlobalDispatcher(agent);
 
 /* ───────── ⚙️ CONFIGURACIÓN MAESTRA ───────── */
 const CONFIG = {
@@ -117,17 +129,20 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildPresences
   ],
-  // Configuraciones de bajo nivel para estabilidad en Cloud
-  rest: { 
-    timeout: 60000, 
-    retries: 5 
+  // Ajustes de estabilidad para evitar el "hang" en el Gateway
+  rest: {
+    timeout: 60000,
+    retries: 3
   },
   ws: {
-    compress: false, // Desactivar compresión reduce carga en el handshake inicial
-    large_threshold: 50
+    compress: false, // Menos carga de CPU y red en el inicio
+    properties: {
+      os: 'linux',
+      browser: 'discord.js',
+      device: 'discord.js'
+    }
   }
 });
-
 /* ───────── 🕵️ DEPURACIÓN PROFUNDA ───────── */
 client.on('debug', d => console.log(`[DEBUG] ${d}`));
 client.on('error', e => console.error(`[ERROR] ${e.message}`));
