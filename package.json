@@ -1,18 +1,23 @@
 {
-  "name": "bot",
+  "name": "power-lucky-bot",
   "version": "1.0.0",
-  "description": "",
+  "description": "Sistema de Tickets Premium para Power Lucky Network",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "start": "node index.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "discord",
+    "minecraft",
+    "tickets"
+  ],
+  "author": "David",
   "license": "ISC",
   "dependencies": {
     "discord.js": "^14.24.1",
     "dotenv": "^17.2.3",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "undici": "^6.21.1"
   }
 }
