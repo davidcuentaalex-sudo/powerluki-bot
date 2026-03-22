@@ -134,13 +134,19 @@ const client = new Client({
     timeout: 60000,
     retries: 3
   },
-  ws: {
-    compress: false, // Menos carga de CPU y red en el inicio
+ ws: {
+    compress: false,
     properties: {
       os: 'linux',
       browser: 'discord.js',
       device: 'discord.js'
     }
+  },
+  // AÑADE ESTO:
+  shards: 'auto', 
+  rest: {
+    timeout: 60000, // Aumentamos a 1 minuto el tiempo de espera
+    retries: 5
   }
 });
 /* ───────── 🕵️ DEPURACIÓN PROFUNDA ───────── */
